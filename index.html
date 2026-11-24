@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root{--red:#c8102e;--ink:#222;--bg:#f2f3f6;--card:#fff;--line:#e2e4e9;}
+  *{box-sizing:border-box}
+  body{margin:0;padding:20px;background:var(--bg);color:var(--ink);font-family:"Segoe UI",Arial,sans-serif}
+  .wrap{max-width:960px;margin:0 auto}
+  h1{color:var(--red);font-size:22px;text-align:center;margin:0 0 4px}
+  .sub{color:#666;font-size:13px;text-align:center;margin-bottom:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  label{display:block;font-size:13px;font-weight:700;color:#444;margin-bottom:6px;text-align:center}
+  input[type=text],input[type=date]{width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:14px;text-align:center;margin-bottom:12px}
+  input[readonly]{background:#f7f7f7}
+  .hint{color:#888;font-size:11px;text-align:center}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .group{grid-column:1/-1;font-size:12px;color:#888;text-align:center;margin-top:6px}
+  .cell{border:1px dashed var(--line);border-radius:10px;padding:10px;background:#fcfcfd}
+  .cell h3{margin:0 0 8px;font-size:13px;color:var(--red);text-align:center}
+  .row{display:flex;gap:8px}
+  .slot{flex:1;text-align:center;min-width:0}
+  .slot input[type=file]{width:100%;font-size:11px}
+  .prev{width:100%;height:100px;object-fit:contain;background:#fafafa;border:1px solid #eee;border-radius:6px;margin-top:6px;display:none}
+  .info{font-size:10px;color:#999;margin-top:2px;min-height:12px}
+  button{display:block;margin:0 auto;background:var(--red);color:#fff;border:0;border-radius:10px;padding:13px 30px;font-size:15px;font-weight:700;cursor:pointer}
+  button:disabled{background:#bbb;cursor:default}
+  #status{margin-top:14px;font-size:14px;text-align:center;line-height:1.7}
+  .ok{color:#1a7f37}.err{color:var(--red)}
+  .actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .actions button{margin:0}
+  .actions button[hidden]{display:none}
+  .btn-save{background:#555}
+  .btn-dl{background:#1a7f37}
+  @media(max-width:700px){.grid{grid-template-columns:1fr}}
+  #gearBtn{position:fixed;top:12px;right:12px;width:40px;height:40px;padding:0;margin:0;border-radius:50%;
+    background:#fff;color:#222;border:1px solid var(--line);font-size:20px;line-height:1;z-index:150;
+    box-shadow:0 1px 4px rgba(0,0,0,.15)}
+  #lockScreen{display:none;position:fixed;inset:0;background:#f2f3f6;z-index:100;
+    align-items:center;justify-content:center;padding:20px;text-align:center}
+  #adminModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;
+    align-items:center;justify-content:center;padding:16px}
+  .box{background:#fff;border-radius:12px;padding:20px;max-width:420px;width:100%;max-height:90vh;overflow:auto}
+  #adminModal button{margin:10px auto 0;padding:10px 22px;font-size:14px}
+  #adminModal input[type=text]{margin:10px 0 0}
+  .switchRow{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:12px;border:1px solid var(--line);border-radius:10px;margin-bottom:12px}
+  .switchRow label{margin:0;text-align:left}
+  .switch{position:relative;display:inline-block;width:52px;height:28px;flex:none;margin:0}
+  .switch input{opacity:0;width:0;height:0;position:absolute}
+  .slider{position:absolute;cursor:pointer;inset:0;background:var(--red);border-radius:28px;transition:.2s}
+  .slider:before{content:"";position:absolute;height:22px;width:22px;left:3px;top:3px;background:#fff;
+    border-radius:50%;transition:.2s}
+  .switch input:checked + .slider{background:#1a7f37}
+  .switch input:checked + .slider:before{transform:translateX(24px)}
+  .statGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .statBox{border:1px solid var(--line);border-radius:10px;padding:10px 4px;text-align:center;font-size:12px;color:#666}
+  .statBox b{display:block;font-size:22px;color:var(--red)}
+  #onlineList{font-size:12px;color:#444;max-height:140px;overflow:auto;line-height:1.7}
+</style>
+</head>
+<body>
+
+<button type="button" id="gearBtn" onclick="openAdmin()" title="Quản trị">⚙️</button>
+
+<div id="lockScreen">
+  <div class="box">
+    <h2 style="margin-top:0">🔒 Đã hết hạn truy cập</h2>
+    <p>Vui lòng liên hệ Zalo hoặc máy <b>0988.068.913</b> để được hỗ trợ.</p>
+  </div>
+</div>
+
+<div id="adminModal">
+  <div class="box">
+    <h3 style="margin:0 0 10px;color:var(--red)">⚙️ Quản trị</h3>
+    <div id="adminLogin">
+      <div style="font-size:13px;color:#666">Mã xác thực sẽ được gửi về email admin</div>
+      <button type="button" id="btnSendOtp" onclick="guiOtp()">Gửi mã OTP về email</button>
+      <div id="otpBox" style="display:none">
+        <input type="text" id="otpInput" inputmode="numeric" maxlength="6" placeholder="Nhập mã 6 số">
+        <button type="button" onclick="xacNhanOtp()">Xác nhận</button>
+      </div>
+    </div>
+    <div id="adminPanel" style="display:none">
+      <p style="font-size:16px"><b id="adminHello"></b></p>
+      <div class="switchRow">
+        <div><b>Trạng thái trang web</b><div id="siteStatusText" style="font-size:13px"></div></div>
+        <label class="switch"><input type="checkbox" id="siteSwitch" onchange="adminDoiTrangThai()"><span class="slider"></span></label>
+      </div>
+      <div class="statGrid">
+        <div class="statBox"><b id="stOnline">0</b>Đang online</div>
+        <div class="statBox"><b id="stToday">0</b>Hôm nay</div>
+        <div class="statBox"><b id="stTotal">0</b>Tổng lượt</div>
+      </div>
+      <div id="onlineList"></div>
+      <button type="button" class="btn-save" onclick="adminDangXuat()">Đăng xuất</button>
+    </div>
+    <div id="adminMsg" style="margin-top:10px;font-size:13px;min-height:16px"></div>
+    <button type="button" class="btn-save" onclick="closeAdmin()">Đóng</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <h1>Nhập dữ liệu nghiệm thu nhân sự</h1>
+  <div class="sub">Mỗi lần gửi tạo trang mới cho 1 shop: tên shop, địa chỉ, 6 ngày/trang và 2 ảnh/ngày.</div>
+
+  <div class="card">
+    <label>Tên Shop</label>
+    <input type="text" id="shopName" list="shopList" placeholder="Gõ hoặc chọn tên shop..." autocomplete="off" oninput="onShopChange()">
+    <datalist id="shopList"></datalist>
+    <label>Địa chỉ</label>
+    <input type="text" id="address" placeholder="Tự động điền theo shop" readonly>
+    <div class="hint">Dữ liệu lấy từ Google Sheet. Chọn shop thì địa chỉ tự điền.</div>
+  </div>
+
+  <div class="card">
+    <label style="margin-bottom:10px">Chọn ngày &amp; ảnh tương ứng (2 ảnh / ngày)</label>
+    <div class="grid" id="datesGrid"></div>
+  </div>
+
+  <div class="actions">
+    <button id="submitBtn" onclick="submitForm()">Gửi dữ liệu</button>
+    <button id="saveBtn" class="btn-save" onclick="saveToDrive()">Lưu lại</button>
+    <button id="dlBtn" class="btn-dl" onclick="openDownload()" hidden>⬇ Tải xuống</button>
+    <button id="impBtn" class="btn-save" onclick="document.getElementById('impFile').click()">📂 Nhập từ file .pptx</button>
+    <input type="file" id="impFile" accept=".pptx" style="display:none" onchange="importPptx(event)">
+  </div>
+  <div id="status"></div>
+</div>
+
+<script>
+// =====================================================================
+//  CẦU NỐI: gọi Apps Script qua fetch (không cần đăng nhập Google)
+//  Apps Script phải deploy: Execute as = Me, Who has access = Anyone
+// =====================================================================
+var API_URL = 'https://script.google.com/macros/s/AKfycbzZ6t73F1c795sOdMR7vesosDzJqR6EbWMRKsMbl5Xzw87MECShxxcrblrGN98zLyYB/exec';
+
+// gasCall(tenHam, [thamso1, thamso2, ...], hamThanhCong, hamThatBai)
+// — dùng thay google.script.run.withSuccessHandler(...).tenHam(args)
+function gasCall(fn, args, onSuccess, onFail) {
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ fn: fn, args: args || [] })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d && d.error) {
+      if (onFail) onFail({ message: d.error });
+    } else {
+      if (onSuccess) onSuccess(d ? d.result : undefined);
+    }
+  })
+  .catch(function(e) { if (onFail) onFail({ message: e.message }); });
+}
+
+// =====================================================================
+//  LOGIC ỨNG DỤNG — giữ nguyên 100%, chỉ thay google.script.run → gasCall
+// =====================================================================
+const DATE_COUNT = 12, GROUP_SIZE = 3;
+const MAX_SIDE = 2400;
+const TARGET_BYTES = 1500000;
+const imageStore = {};
+let shopData = [];
+
+function buildForm(){
+  let html = '';
+  for (let g = 0; g < DATE_COUNT / GROUP_SIZE; g++){
+    html += '<div class="group">Nhóm ngày ' + (g+1) + ' — trang ' + (Math.floor(g/2)+1) + '</div>';
+    for (let i = g*GROUP_SIZE; i < (g+1)*GROUP_SIZE; i++){
+      html += '<div class="cell"><h3>Ngày ' + (i+1) + '</h3>' +
+        '<input type="date" id="date_' + i + '" onchange="this.style.borderColor=\'\'"><div class="row">' + slot(i,0) + slot(i,1) + '</div></div>';
+    }
+  }
+  document.getElementById('datesGrid').innerHTML = html;
+}
+function slot(d, s){
+  const id = d + '_' + s;
+  return '<div class="slot"><input type="file" accept="image/*" onchange="handleFile(event,' + d + ',' + s + ')">' +
+         '<img class="prev" id="prev_' + id + '"><div class="info" id="info_' + id + '"></div></div>';
+}
+
+function handleFile(evt, d, s){
+  const file = evt.target.files[0];
+  const key = d + '_' + s;
+  if (!file){ delete imageStore[key]; document.getElementById('prev_'+key).style.display='none'; return; }
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const img = new Image();
+    img.onload = function(){
+      let w = img.width, h = img.height;
+      if (w > MAX_SIDE || h > MAX_SIDE){
+        const k = Math.min(MAX_SIDE/w, MAX_SIDE/h);
+        w = Math.round(w*k); h = Math.round(h*k);
+      }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h);
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, w, h);
+      let q = 0.94, url = c.toDataURL('image/jpeg', q);
+      while (url.length * 0.75 > TARGET_BYTES && q > 0.85){ q -= 0.03; url = c.toDataURL('image/jpeg', q); }
+      imageStore[key] = { base64: url.split(',')[1], mimeType: 'image/jpeg', fileName: 'img_' + key + '.jpg', w: w, h: h };
+      const p = document.getElementById('prev_' + key);
+      p.src = url; p.style.display = 'block';
+      document.getElementById('info_' + key).textContent = w + '×' + h + ' · ' + Math.round(url.length*0.75/1024) + 'KB';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function formatDate(iso){ if(!iso) return ''; const p = iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+
+function submitForm(){
+  const shopName = document.getElementById('shopName').value.trim();
+  const address  = document.getElementById('address').value.trim();
+  if (!shopName || !address){ showStatus('Vui lòng chọn shop (tên và địa chỉ).', false); return; }
+
+  const dates = [];
+  for (let i = 0; i < DATE_COUNT; i++) dates.push(formatDate(document.getElementById('date_' + i).value));
+
+  for (let i = 0; i < DATE_COUNT; i++){
+    const hasImg = imageStore[i+'_0'] || imageStore[i+'_1'];
+    const el = document.getElementById('date_' + i);
+    el.style.borderColor = '';
+    if (hasImg && !el.value){
+      el.style.borderColor = '#c8102e';
+      el.scrollIntoView({ behavior:'smooth', block:'center' });
+      el.focus();
+      showStatus('Ngày ' + (i+1) + ' đã có ảnh nhưng chưa chọn ngày. Vui lòng chọn ngày rồi gửi lại.', false);
+      return;
+    }
+  }
+  if (!dates.some(function(d){ return d; })){
+    showStatus('Vui lòng chọn ít nhất 1 ngày (cần để đặt tên file).', false); return;
+  }
+
+  const iso = [];
+  for (let i = 0; i < DATE_COUNT; i++){ const v = document.getElementById('date_' + i).value; if (v) iso.push(v); }
+  iso.sort();
+  const safeShop = shopName.replace(/[\\\/:*?"<>|]/g, '_');
+  const dFrom = iso.length ? formatDate(iso[0]).replace(/\//g, '-') : '';
+  const dTo   = iso.length ? formatDate(iso[iso.length-1]).replace(/\//g, '-') : '';
+  dlName = safeShop + (dFrom ? ' - ' + (dFrom === dTo ? dFrom : dFrom + ' đến ' + dTo) : '') + '.pptx';
+
+  const images = Object.keys(imageStore).map(function(k){
+    const p = k.split('_').map(Number), d = imageStore[k];
+    return { dateIndex:p[0], slot:p[1], base64:d.base64, mimeType:d.mimeType, fileName:d.fileName, w:d.w, h:d.h };
+  });
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  document.getElementById('dlBtn').hidden = true;
+  downloadUrl = '';
+  showStatus('Đang xử lý, vui lòng đợi (ảnh càng nhiều càng lâu)...', null);
+
+  gasCall('submitShop',
+    [{ shopName:shopName, address:address, dates:dates, images:images }],
+    function(res){
+      btn.disabled = false;
+      if (!res.ok){ showStatus('Lỗi: ' + res.error, false); return; }
+      const links = (res.slideUrls||[]).map(function(u,i){
+        return '<a href="' + u + '" target="_blank">Trang ' + (i+1) + '</a>';
+      }).join(' | ');
+      let html = 'Đã tạo ' + res.slideUrls.length + ' trang: ' + links;
+      if (res.downloadUrl){ downloadUrl = res.downloadUrl; fileId = res.fileId; document.getElementById('dlBtn').hidden = false; }
+      showStatus(html, true);
+    },
+    function(err){ btn.disabled = false; showStatus('Lỗi: ' + err.message, false); }
+  );
+}
+
+function showStatus(html, ok){
+  if (typeof html === 'string' && html.indexOf('SITE_DISABLED') > -1){ showLock(); return; }
+  const el = document.getElementById('status');
+  el.innerHTML = html;
+  el.className = ok === true ? 'ok' : (ok === false ? 'err' : '');
+}
+
+function loadShops(){
+  gasCall('getShopList', [],
+    function(list){
+      shopData = list || [];
+      document.getElementById('shopList').innerHTML = shopData.map(function(s){
+        return '<option value="' + s.name.replace(/"/g,'&quot;') + '"></option>';
+      }).join('');
+    },
+    function(err){ showStatus('Không đọc được Google Sheet: ' + err.message, false); }
+  );
+}
+function onShopChange(){
+  const name = document.getElementById('shopName').value.trim();
+  const f = shopData.find(function(s){ return s.name === name; });
+  document.getElementById('address').value = f ? f.address : '';
+}
+
+let downloadUrl = '', fileId = '', dlName = '';
+
+function resetForm(){
+  for (let i = 0; i < DATE_COUNT; i++) document.getElementById('date_' + i).value = '';
+  Object.keys(imageStore).forEach(function(k){ delete imageStore[k]; });
+  document.querySelectorAll('.prev').forEach(function(p){ p.style.display='none'; p.removeAttribute('src'); });
+  document.querySelectorAll('.info').forEach(function(el){ el.textContent = ''; });
+  document.querySelectorAll('input[type=file]').forEach(function(el){ el.value = ''; });
+  document.getElementById('shopName').value = '';
+  document.getElementById('address').value = '';
+}
+
+function openDownload(){
+  if (!fileId){ showStatus('Chưa có file để tải. Hãy bấm Gửi dữ liệu trước.', false); return; }
+  const id = fileId, name = dlName || 'nghiem-thu.pptx';
+  const dl = document.getElementById('dlBtn');
+  dl.disabled = true;
+  showStatus('Đang tải file về máy, vui lòng đợi...', null);
+  gasCall('getExportBase64', [id],
+    function(res){
+      if (!res.ok){ dl.disabled=false; showStatus('Lỗi: ' + res.error, false); return; }
+      const bin = atob(res.base64), arr = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      const blob = new Blob([arr], { type:'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = name;
+      document.body.appendChild(a); a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 5000);
+      gasCall('deleteExport', [id], null, null);
+      dl.disabled=false; dl.hidden=true;
+      downloadUrl=''; fileId=''; dlName='';
+      resetForm();
+      showStatus('Đã tải "' + name + '". Form đã làm trống, bạn có thể nhập shop mới.', true);
+    },
+    function(err){ dl.disabled=false; showStatus('Lỗi: ' + err.message, false); }
+  );
+}
+
+function saveToDrive(){
+  if (!fileId){ showStatus('Hãy bấm Gửi dữ liệu trước, rồi mới Lưu lại.', false); return; }
+  const pw = prompt('Nhập mật khẩu để lưu:');
+  if (pw === null) return;
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  showStatus('Đang lưu vào Drive...', null);
+  gasCall('saveShopToDrive',
+    [document.getElementById('shopName').value.trim(), fileId, dlName, pw],
+    function(res){
+      btn.disabled = false;
+      if (!res.ok){ showStatus('Lỗi: ' + res.error, false); return; }
+      showStatus('Đã lưu vào Drive: <a href="' + res.url + '" target="_blank">Mở file</a> | <a href="' + res.folderUrl + '" target="_blank">Mở thư mục</a>', true);
+    },
+    function(err){ btn.disabled=false; showStatus('Lỗi: ' + err.message, false); }
+  );
+}
+
+// ===== LƯU NHÁP (IndexedDB) =====
+function dbOpen(){
+  return new Promise(function(res,rej){
+    const r = indexedDB.open('nghiemthu',1);
+    r.onupgradeneeded = function(){ r.result.createObjectStore('draft'); };
+    r.onsuccess = function(){ res(r.result); };
+    r.onerror   = function(){ rej(r.error); };
+  });
+}
+function dbSet(v){
+  return dbOpen().then(function(db){
+    return new Promise(function(res,rej){
+      const t = db.transaction('draft','readwrite');
+      t.objectStore('draft').put(v,'current');
+      t.oncomplete = res; t.onerror = function(){ rej(t.error); };
+    });
+  });
+}
+function dbGet(){
+  return dbOpen().then(function(db){
+    return new Promise(function(res,rej){
+      const q = db.transaction('draft','readonly').objectStore('draft').get('current');
+      q.onsuccess = function(){ res(q.result); };
+      q.onerror   = function(){ rej(q.error); };
+    });
+  });
+}
+function restoreDraft(){
+  dbGet().then(function(d){
+    if (!d) return;
+    document.getElementById('shopName').value = d.shopName || '';
+    document.getElementById('address').value  = d.address  || '';
+    (d.dates||[]).forEach(function(v,i){
+      const el = document.getElementById('date_'+i); if (el) el.value = v;
+    });
+    Object.keys(d.images||{}).forEach(function(k){
+      const im = d.images[k]; imageStore[k] = im;
+      const p = document.getElementById('prev_'+k);
+      if (p){ p.src='data:'+im.mimeType+';base64,'+im.base64; p.style.display='block'; }
+      const inf = document.getElementById('info_'+k);
+      if (inf) inf.textContent = im.w+'×'+im.h+' · đã lưu';
+    });
+  }).catch(function(){});
+}
+
+// ===== NHẬP NGƯỢC TỪ FILE .PPTX =====
+const NS_A   = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+const NS_P   = 'http://schemas.openxmlformats.org/presentationml/2006/main';
+const NS_R   = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+const NS_REL = 'http://schemas.openxmlformats.org/package/2006/relationships';
+function pxXml(s){ return new DOMParser().parseFromString(s,'application/xml'); }
+function pxAll(el,ns,name){ return Array.prototype.slice.call(el.getElementsByTagNameNS(ns,name)); }
+function pxRels(s){
+  const m={};
+  pxAll(pxXml(s),NS_REL,'Relationship').forEach(function(r){ m[r.getAttribute('Id')]=r.getAttribute('Target'); });
+  return m;
+}
+function pxResolve(baseDir,target){
+  if(target.charAt(0)==='/') return target.slice(1);
+  const parts=baseDir.split('/').filter(Boolean);
+  target.split('/').forEach(function(p){ if(p==='..') parts.pop(); else if(p!=='.') parts.push(p); });
+  return parts.join('/');
+}
+function pxXfrm(el){
+  const x=pxAll(el,NS_A,'xfrm')[0]; if(!x) return null;
+  const off=pxAll(x,NS_A,'off')[0], ext=pxAll(x,NS_A,'ext')[0]; if(!off||!ext) return null;
+  return{x:+off.getAttribute('x'),y:+off.getAttribute('y'),cx:+ext.getAttribute('cx'),cy:+ext.getAttribute('cy')};
+}
+function pxImgSize(url){
+  return new Promise(function(res){
+    const i=new Image();
+    i.onload=function(){ res({w:i.naturalWidth,h:i.naturalHeight}); };
+    i.onerror=function(){ res({w:0,h:0}); };
+    i.src=url;
+  });
+}
+async function importPptx(evt){
+  const file=evt.target.files[0]; evt.target.value='';
+  if(!file) return;
+  if(!/\.pptx$/i.test(file.name)){ showStatus('Chỉ nhập được file .pptx.',false); return; }
+  const dirty=Object.keys(imageStore).length||document.getElementById('shopName').value.trim();
+  if(dirty&&!confirm('Form đang có dữ liệu. Nhập file sẽ thay thế toàn bộ. Tiếp tục?')) return;
+  showStatus('Đang đọc file, vui lòng đợi...',null);
+  try{
+    const zip=await JSZip.loadAsync(file);
+    const readText=async function(p){
+      const f=zip.file(p); if(!f) throw new Error('File không đúng định dạng .pptx (thiếu '+p+').');
+      return f.async('string');
+    };
+    const pres=pxXml(await readText('ppt/presentation.xml'));
+    const presRels=pxRels(await readText('ppt/_rels/presentation.xml.rels'));
+    const slidePaths=pxAll(pres,NS_P,'sldId').map(function(n){
+      return pxResolve('ppt',presRels[n.getAttributeNS(NS_R,'id')]);
+    });
+    let shopName='',address='',chunk=0;
+    const dates=[],store={};
+    for(const sp of slidePaths){
+      const doc=pxXml(await readText(sp));
+      const dir=sp.substring(0,sp.lastIndexOf('/'));
+      const relsFile=dir+'/_rels/'+sp.substring(sp.lastIndexOf('/')+1)+'.rels';
+      const rels=zip.file(relsFile)?pxRels(await zip.file(relsFile).async('string')):{};
+      let title=null; const headers=[];
+      pxAll(doc,NS_P,'sp').forEach(function(s){
+        const paras=pxAll(s,NS_A,'p').map(function(p){ return pxAll(p,NS_A,'t').map(function(t){ return t.textContent; }).join(''); });
+        const full=paras.join('\n');
+        const m=full.match(/^([\s\S]*?)\s*Địa chỉ\s*:\s*([\s\S]*)$/);
+        if(m){ title={shop:m[1].trim(),addr:m[2].trim().replace(/\s*\(phần \d+\/\d+\)\s*$/,'')}; return; }
+        const joined=paras.join(' ').trim();
+        if(/^Ngày\b/.test(joined)){ const xf=pxXfrm(s); if(xf) headers.push(Object.assign({date:joined.replace(/^Ngày\s*/,'')},xf)); }
+      });
+      if(!title) continue;
+      if(headers.length<6) throw new Error('Không đọc được bố cục 6 ô ngày của trang '+(chunk+1)+'.');
+      if(!shopName){ shopName=title.shop; address=title.addr; }
+      headers.sort(function(a,b){return a.y-b.y;});
+      const byX=function(a,b){return a.x-b.x;};
+      const row0=headers.slice(0,3).sort(byX), row1=headers.slice(3,6).sort(byX);
+      for(let i=0;i<6;i++){
+        const h=i<3?row0[i]:row1[i-3];
+        if(chunk*6+i<DATE_COUNT) dates[chunk*6+i]=h.date;
+      }
+      const rowSplit=row1[0].y;
+      for(const pic of pxAll(doc,NS_P,'pic')){
+        const xf=pxXfrm(pic), blip=pxAll(pic,NS_A,'blip')[0];
+        if(!xf||!blip) continue;
+        const target=rels[blip.getAttributeNS(NS_R,'embed')]; if(!target) continue;
+        const cxm=xf.x+xf.cx/2, cym=xf.y+xf.cy/2;
+        if(cym<row0[0].y+row0[0].cy) continue;
+        const r=cym<rowSplit?0:1, rowH=r?row1:row0;
+        const ci=rowH.findIndex(function(h){return cxm>=h.x&&cxm<h.x+h.cx;}); if(ci<0) continue;
+        const sl=cxm<rowH[ci].x+rowH[ci].cx/2?0:1, gi=chunk*6+r*3+ci;
+        if(gi>=DATE_COUNT) continue;
+        const key=gi+'_'+sl; if(store[key]) continue;
+        const path=pxResolve(dir,target), f=zip.file(path); if(!f) continue;
+        const b64=await f.async('base64'), ext=path.split('.').pop().toLowerCase();
+        const mime=ext==='png'?'image/png':(ext==='gif'?'image/gif':'image/jpeg');
+        const sz=await pxImgSize('data:'+mime+';base64,'+b64);
+        store[key]={base64:b64,mimeType:mime,fileName:'img_'+key+'.'+(ext==='png'?'png':'jpg'),w:sz.w,h:sz.h};
+      }
+      chunk++;
+    }
+    if(!chunk) throw new Error('Không tìm thấy trang dữ liệu nào. File này không phải do form này tạo ra.');
+    resetForm();
+    document.getElementById('shopName').value=shopName;
+    document.getElementById('address').value=address;
+    dates.forEach(function(d,i){
+      const m=/(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(d||'');
+      if(m) document.getElementById('date_'+i).value=m[3]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2);
+    });
+    Object.keys(store).forEach(function(k){
+      const im=store[k]; imageStore[k]=im;
+      const p=document.getElementById('prev_'+k);
+      if(p){ p.src='data:'+im.mimeType+';base64,'+im.base64; p.style.display='block'; }
+      const inf=document.getElementById('info_'+k);
+      if(inf) inf.textContent=im.w+'×'+im.h+' · đã nhập';
+    });
+    showStatus('Đã nhập "'+shopName+'": '+Object.keys(store).length+' ảnh từ '+chunk+' trang.',true);
+  } catch(err){
+    showStatus('Lỗi nhập file: '+(err&&err.message||err),false);
+  }
+}
+
+buildForm();
+restoreDraft();
+loadShops();
+
+// ===== ADMIN =====
+let adminToken=null, adminTimer=null;
+try{ adminToken=sessionStorage.getItem('atk_nghiemthu'); }catch(e){}
+
+function adminMsg(text,ok){
+  const m=document.getElementById('adminMsg');
+  m.style.color=ok?'#1a7f37':'#c8102e';
+  m.textContent=text||'';
+}
+function hienPanel(email){
+  document.getElementById('adminLogin').style.display='none';
+  document.getElementById('adminPanel').style.display='block';
+  document.getElementById('adminHello').textContent='👋 Xin chào admin! ('+email+')';
+  taiThongKe();
+  clearInterval(adminTimer);
+  adminTimer=setInterval(taiThongKe,10000);
+}
+function hienDangNhap(){
+  clearInterval(adminTimer);
+  document.getElementById('adminLogin').style.display='block';
+  document.getElementById('adminPanel').style.display='none';
+}
+function openAdmin(){
+  adminMsg('');
+  document.getElementById('adminModal').style.display='flex';
+  hienDangNhap();
+  if(!adminToken) return;
+  gasCall('adminCheck',[adminToken],
+    function(r){ if(r&&r.ok) hienPanel(r.email); else{ adminToken=null; try{sessionStorage.removeItem('atk_nghiemthu');}catch(e){} } },
+    null
+  );
+}
+function closeAdmin(){ document.getElementById('adminModal').style.display='none'; clearInterval(adminTimer); }
+
+function guiOtp(){
+  const b=document.getElementById('btnSendOtp');
+  b.disabled=true; adminMsg('Đang gửi mã...', true);
+  gasCall('adminSendOtp',[],
+    function(r){
+      if(!r.ok){ adminMsg(r.error); b.disabled=false; return; }
+      adminMsg('Đã gửi mã về email admin. Kiểm tra hộp thư (cả mục Spam).', true);
+      document.getElementById('otpBox').style.display='block';
+      setTimeout(function(){ b.disabled=false; b.textContent='Gửi lại mã'; }, 60000);
+    },
+    function(err){ adminMsg(err.message); b.disabled=false; }
+  );
+}
+function xacNhanOtp(){
+  const code=document.getElementById('otpInput').value;
+  adminMsg('Đang xác thực...', true);
+  gasCall('adminLogin',[code],
+    function(r){
+      if(!r.ok){ adminMsg(r.error); return; }
+      adminToken=r.token;
+      try{ sessionStorage.setItem('atk_nghiemthu',r.token); }catch(e){}
+      document.getElementById('otpInput').value='';
+      document.getElementById('otpBox').style.display='none';
+      adminMsg(''); hienPanel(r.email);
+    },
+    function(err){ adminMsg(err.message); }
+  );
+}
+function adminDangXuat(){
+  gasCall('adminLogout',[adminToken],null,null);
+  adminToken=null;
+  try{ sessionStorage.removeItem('atk_nghiemthu'); }catch(e){}
+  hienDangNhap(); adminMsg('Đã đăng xuất.', true);
+}
+
+// ===== KHÓA WEB + ONLINE + THỐNG KÊ =====
+function showLock(){ document.getElementById('lockScreen').style.display='flex'; }
+function hideLock(){ document.getElementById('lockScreen').style.display='none'; }
+
+let clientId=null;
+try{ clientId=sessionStorage.getItem('cid_nghiemthu'); }catch(e){}
+let newVisit=!clientId;
+if(!clientId){
+  clientId=Math.random().toString(36).slice(2)+Date.now().toString(36);
+  try{ sessionStorage.setItem('cid_nghiemthu',clientId); }catch(e){}
+}
+
+function pingServer(){
+  gasCall('ping',[clientId, newVisit, document.getElementById('shopName').value.trim()],
+    function(r){
+      newVisit=false;
+      if(!r.enabled) showLock();
+      else if(document.getElementById('lockScreen').style.display==='flex'){ hideLock(); loadShops(); }
+    },
+    function(){}
+  );
+}
+pingServer();
+setInterval(pingServer, 60000);
+
+function veThongKe(s){
+  document.getElementById('siteSwitch').checked=s.enabled;
+  document.getElementById('siteStatusText').textContent=s.enabled?'🟢 Đang MỞ':'🔴 Đang TẮT';
+  document.getElementById('stOnline').textContent=s.online.length;
+  document.getElementById('stToday').textContent=s.visitsToday;
+  document.getElementById('stTotal').textContent=s.visitsTotal;
+  const list=document.getElementById('onlineList'); list.textContent='';
+  s.online.forEach(function(o){
+    const d=document.createElement('div');
+    d.textContent='• '+(o.shop||'Chưa chọn shop')+' ('+o.giay+' giây trước)';
+    list.appendChild(d);
+  });
+}
+function heTokenAdmin(msg){
+  adminToken=null; try{sessionStorage.removeItem('atk_nghiemthu');}catch(e){}
+  hienDangNhap(); adminMsg(msg);
+}
+function taiThongKe(){
+  gasCall('adminStats',[adminToken],
+    function(r){ if(!r.ok){ heTokenAdmin(r.error); return; } veThongKe(r); },
+    function(err){ adminMsg(err.message); }
+  );
+}
+function adminDoiTrangThai(){
+  const sw=document.getElementById('siteSwitch'), bat=sw.checked;
+  if(!bat&&!confirm('Tắt trang web? Người dùng sẽ không nhập được nữa.')){ sw.checked=true; return; }
+  adminMsg('Đang cập nhật...', true);
+  gasCall('adminSetEnabled',[adminToken, bat],
+    function(r){
+      if(!r.ok){ sw.checked=!bat; heTokenAdmin(r.error); return; }
+      adminMsg(''); veThongKe(r);
+      if(r.enabled){ hideLock(); loadShops(); } else showLock();
+    },
+    function(err){ sw.checked=!bat; adminMsg(err.message); }
+  );
+}
+</script>
+</body>
+</html>
